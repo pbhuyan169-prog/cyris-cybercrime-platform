@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYRIS - Predictive Analytics Framework for Cybercrime Complaints</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="./src/styles/main.css">
+</head>
+<body>
+
+    <!-- TOP NAVIGATION BAR -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <div class="shield-logo">🛡️</div>
+            <div>
+                <div class="brand-title">CYRIS <span>AI</span></div>
+                <div class="brand-subtitle">Smart India Hackathon 2026 Prototype</div>
+            </div>
+        </div>
+
+        <div class="nav-actions">
+            <div id="live-socket-badge" class="badge-socket disconnected">
+                <span class="dot"></span> Live Alerts: Offline
+            </div>
+            <div id="current-user-pill" class="user-pill" style="display: none;">
+                <span id="user-role-label">Guest</span>
+                <button class="btn-sm btn-outline" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- REAL-TIME ALERT TOAST BANNER -->
+    <div id="alert-toast-container"></div>
+
+    <!-- MAIN CONTAINER -->
+    <div class="app-container">
+
+        <!-- LANDING / PORTAL SELECTOR -->
+        <div id="screen-landing" class="screen active">
+            <div class="hero-section">
+                <div class="hero-badge">SIH 2026 Cybercrime Analytics Framework</div>
+                <h1 class="hero-title">Predictive Intelligence & Fraud Cash-Out Analytics</h1>
+                <p class="hero-desc">Integrated real-time portal connecting Citizen Complaints, AI/ML Risk Scoring, Bank Transaction Verification, and GIS Cash-Out Hotspot Analytics.</p>
+
+                <div class="portal-grid">
+                    <!-- Citizen Portal Card -->
+                    <div class="portal-card" onclick="openCitizenLogin()">
+                        <div class="card-icon">👤</div>
+                        <h3>Citizen Portal</h3>
+                        <p>Report cybercrime incidents, receive real-time OTP updates, track complaint status and investigation progress.</p>
+                        <button class="btn btn-primary full-width">Enter Citizen Portal</button>
+                    </div>
+
+                    <!-- Authority Portal Card -->
+                    <div class="portal-card highlighted" onclick="openAuthorityModal()">
+                        <div class="card-icon">🛡️</div>
+                        <h3>Authority Portal</h3>
+                        <p>Multi-agency portal for Police Investigators, Cyber Authorities, and Bank Officers with GIS map & AI predictions.</p>
+                        <button class="btn btn-accent full-width">Select Authority Portal</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- CITIZEN PORTAL SCREEN -->
+        <div id="screen-citizen" class="screen">
+            <div class="portal-header">
+                <div>
+                    <h2>Citizen Cybercrime Reporting Portal</h2>
+                    <p>Submit incident details safely. Receive instant Complaint ID and live tracking updates.</p>
+                </div>
+                <button class="btn btn-secondary" onclick="showScreen('screen-landing')">← Back to Home</button>
+            </div>
+
+            <!-- Citizen Tabs -->
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchCitizenTab('file-tab')">📝 File Cybercrime Complaint</button>
+                <button class="tab-btn" onclick="switchCitizenTab('my-tab')">📋 My Complaints & Updates</button>
+            </div>
+
+            <!-- File Complaint Form -->
+            <div id="file-tab" class="tab-content active">
+                <div class="glass-card">
+                    <form id="form-complaint" onsubmit="handleComplaintSubmit(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Full Name *</label>
+                                <input type="text" id="c-name" required placeholder="e.g. Rajesh Mohanty">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Mobile Number * (Real-Time OTP Verified)</label>
+                                <input type="text" id="c-phone" required placeholder="e.g. +91 98765 43210">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Email Address</label>
+                                <input type="email" id="c-email" placeholder="e.g. rajesh@example.com">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Cybercrime Fraud Type *</label>
+                                <select id="c-fraud-type" required>
+                                    <option value="UPI_FRAUD">UPI Fraud</option>
+                                    <option value="BANKING_FRAUD">Online Banking Fraud</option>
+                                    <option value="ATM_FRAUD">ATM Fraud</option>
+                                    <option value="PHISHING">Phishing Scam</option>
+                                    <option value="SOCIAL_MEDIA_SCAM">Social Media Scam</option>
+                                    <option value="ONLINE_SHOPPING">Online Shopping Fraud</option>
+                                    <option value="OTHER">Other Cybercrime</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Transaction Reference ID</label>
+                                <input type="text" id="c-txid" placeholder="e.g. TXN-88421">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Fraud Amount (₹) *</label>
+                                <input type="number" id="c-amount" required min="1" step="100" placeholder="e.g. 25000">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Receiver UPI ID (if applicable)</label>
+                                <input type="text" id="c-upi" placeholder="e.g. fastcash.refund@ybl">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Incident City *</label>
+                                <input type="text" id="c-city" required value="Bhubaneswar">
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label>Evidence Upload / Screenshots</label>
+                                <input type="file" id="c-evidence" class="file-input">
+                                <small class="text-muted">Upload screenshot of debit SMS, UPI transaction receipt, or phishing message.</small>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label>Detailed Incident Description *</label>
+                                <textarea id="c-desc" rows="4" required placeholder="Describe how the fraud took place, messages received, and any suspect details..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-footer">
+                            <button type="submit" class="btn btn-primary btn-lg">🚀 Register Cybercrime Complaint</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- My Complaints Tab -->
+            <div id="my-tab" class="tab-content">
+                <div class="glass-card">
+                    <h3>My Registered Complaints</h3>
+                    <div id="citizen-complaint-list" class="list-container">
+                        <p class="text-muted">No complaints filed yet in this session.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- AUTHORITY DASHBOARD SCREEN -->
+        <div id="screen-authority" class="screen">
+            <div class="portal-header">
+                <div>
+                    <h2 id="authority-title-heading">Cybercrime Authority Dashboard</h2>
+                    <p id="authority-subtitle-heading">Multi-agency investigative portal with real-time AI risk prediction & GIS map.</p>
+                </div>
+                <button class="btn btn-secondary" onclick="showScreen('screen-landing')">← Switch Persona</button>
+            </div>
+
+            <!-- METRIC CARDS -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-val" id="metric-total">16</div>
+                    <div class="metric-lbl">Total Complaints</div>
+                </div>
+                <div class="metric-card danger">
+                    <div class="metric-val" id="metric-high">6</div>
+                    <div class="metric-lbl">High-Risk Fraud Cases</div>
+                </div>
+                <div class="metric-card warning">
+                    <div class="metric-val" id="metric-alerts">4</div>
+                    <div class="metric-lbl">Pending Live Alerts</div>
+                </div>
+                <div class="metric-card success">
+                    <div class="metric-val" id="metric-verified">3</div>
+                    <div class="metric-lbl">Verified AI Predictions</div>
+                </div>
+            </div>
+
+            <!-- MAIN WORKSPACE SPLIT -->
+            <div class="workspace-split">
+
+                <!-- LEFT SIDEBAR: COMPLAINT SEARCH & LIST -->
+                <div class="sidebar-panel glass-card">
+                    <div class="panel-header">
+                        <h3>Complaints & Search</h3>
+                        <div class="search-box">
+                            <input type="text" id="search-input" placeholder="Search CMP-ID, UPI, Phone..." oninput="handleSearch()">
+                        </div>
+                    </div>
+
+                    <div id="complaints-scroll-list" class="complaint-list scrollable">
+                        <!-- Dynamically populated complaints -->
+                    </div>
+                </div>
+
+                <!-- RIGHT CONTENT PANEL: DETAILS, AI PREDICTION, GIS MAP & BANK API -->
+                <div class="main-panel glass-card" id="case-detail-panel">
+                    <div id="case-detail-empty" class="empty-state">
+                        <div class="empty-icon">🔍</div>
+                        <h3>Select a Complaint to Investigate</h3>
+                        <p>Click on any complaint from the left panel to inspect linked entities, AI risk scores, Leaflet GIS maps, and bank transactions.</p>
+                    </div>
+
+                    <div id="case-detail-content" style="display: none;">
+                        <!-- Case Header -->
+                        <div class="case-header">
+                            <div>
+                                <span class="badge badge-id" id="detail-cmp-id">CMP-2026-1001</span>
+                                <span class="badge badge-status" id="detail-status">Under Review</span>
+                                <h2 id="detail-fraud-title">UPI Fraud - ₹25,000.00</h2>
+                                <p class="text-muted" id="detail-timestamp">Filed 15 minutes ago by Citizen</p>
+                            </div>
+                            <div class="status-action">
+                                <label>Update Investigation Status:</label>
+                                <select id="status-select" onchange="updateCaseStatus()">
+                                    <option value="Under Review">Under Review</option>
+                                    <option value="Pending Bank Freeze">Pending Bank Freeze</option>
+                                    <option value="Escalated to Police">Escalated to Police</option>
+                                    <option value="Action Taken">Action Taken</option>
+                                    <option value="Resolved">Resolved</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 3-COLUMNS DETAILS GRID -->
+                        <div class="detail-grid">
+                            
+                            <!-- COL 1: MASKED LINKED ENTITIES -->
+                            <div class="detail-box">
+                                <h4>🔗 Authorised Entity Linkage</h4>
+                                <div class="entity-row">
+                                    <span class="entity-lbl">Complainant Phone:</span>
+                                    <span class="entity-val masked" id="detail-phone">+91 98****3210</span>
+                                </div>
+                                <div class="entity-row">
+                                    <span class="entity-lbl">Suspect / Receiver UPI:</span>
+                                    <span class="entity-val masked" id="detail-upi">f***h@ybl</span>
+                                </div>
+                                <div class="entity-row">
+                                    <span class="entity-lbl">Transaction Ref:</span>
+                                    <span class="entity-val highlight" id="detail-txid">TXN-88421</span>
+                                    <button class="btn-xs btn-outline" onclick="lookupBankTransaction()">Bank Lookup</button>
+                                </div>
+                                <div class="entity-row">
+                                    <span class="entity-lbl">Incident City:</span>
+                                    <span class="entity-val" id="detail-city">Bhubaneswar, Odisha</span>
+                                </div>
+
+                                <!-- Similar Complaints Widget -->
+                                <div class="similar-cases-box">
+                                    <div class="box-title">Network Synergy: Related Complaints</div>
+                                    <div id="similar-cases-list">
+                                        <div class="similar-item">
+                                            <span>CMP-2026-1007</span>
+                                            <span class="badge badge-sm">Matched Receiver UPI (96%)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- COL 2: AI/ML RISK PREDICTION & DECISION SUPPORT -->
+                            <div class="detail-box ai-box">
+                                <h4>🤖 AI/ML Risk Prediction Engine</h4>
+                                <div class="risk-score-display">
+                                    <div class="score-circle" id="detail-risk-circle">
+                                        <span class="score-num" id="detail-risk-score">0.87</span>
+                                        <span class="score-lbl">Risk Score</span>
+                                    </div>
+                                    <div class="score-meta">
+                                        <div>Risk Level: <span class="badge badge-danger" id="detail-risk-level">HIGH</span></div>
+                                        <div class="text-muted">ML Model Confidence: <b id="detail-confidence">89%</b></div>
+                                        <div class="disclaimer-tag">⚠️ Decision-Support Output (Human Verification Required)</div>
+                                    </div>
+                                </div>
+
+                                <div class="verification-controls">
+                                    <label>Investigator Verification:</label>
+                                    <div class="btn-group">
+                                        <button class="btn btn-success btn-sm" onclick="verifyPrediction('Verified')">✓ Verify Prediction</button>
+                                        <button class="btn btn-danger btn-sm" onclick="verifyPrediction('Rejected')">✗ Reject Prediction</button>
+                                    </div>
+                                    <div id="prediction-verify-status" class="status-note">Status: Pending Verification</div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- GIS CASH-OUT MAP SECTION -->
+                        <div class="map-section">
+                            <div class="section-header">
+                                <h4>🗺️ GIS Predicted High-Risk Cash-Out ATM Locations</h4>
+                                <span class="text-muted">OpenStreetMap Leaflet Engine</span>
+                            </div>
+                            <div id="gis-map"></div>
+                            <div class="map-legend">
+                                <span class="legend-item"><span class="color-dot red"></span> High Risk Cash-Out Zone</span>
+                                <span class="legend-item"><span class="color-dot orange"></span> Medium Risk</span>
+                                <span class="legend-item"><span class="color-dot green"></span> Low Risk</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- OTP MODAL FOR CITIZENS -->
+    <div id="modal-otp" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Real-Time OTP Verification</h3>
+                <button class="close-btn" onclick="closeModal('modal-otp')">×</button>
+            </div>
+            <div class="modal-body">
+                <p>A 6-digit real-time authentication OTP has been dispatched to your mobile number and email.</p>
+
+                <!-- Simulated OTP Toast Box -->
+                <div class="otp-preview-box">
+                    <div class="preview-title">📱 Real-Time SMS / Email Simulation:</div>
+                    <div class="preview-code">Your CYRIS OTP is: <b id="otp-code-display">123456</b></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Enter 6-Digit OTP Code</label>
+                    <input type="text" id="input-otp" class="otp-input" placeholder="123456" maxlength="6">
+                </div>
+
+                <button class="btn btn-primary full-width" onclick="submitOTPVerification()">Verify OTP & Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTHORITY LOGIN MODAL (3 OPTIONS) -->
+    <div id="modal-authority" class="modal-overlay">
+        <div class="modal-box width-medium">
+            <div class="modal-header">
+                <h3>Authority Portal Authentication</h3>
+                <button class="close-btn" onclick="closeModal('modal-authority')">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Select your authorized agency role to proceed:</p>
+
+                <!-- 3 AUTHORITY OPTIONS SELECTOR -->
+                <div class="authority-options-grid">
+                    <div class="auth-option active" id="auth-opt-cyber" onclick="selectAuthorityOption('CYBER_AUTHORITY')">
+                        <div class="opt-icon">💻</div>
+                        <div class="opt-name">Cyber Authority</div>
+                        <div class="opt-desc">Primary Cybercrime Cell</div>
+                    </div>
+                    <div class="auth-option" id="auth-opt-police" onclick="selectAuthorityOption('POLICE')">
+                        <div class="opt-icon">🚓</div>
+                        <div class="opt-name">Police / Investigator</div>
+                        <div class="opt-desc">Ground Investigation</div>
+                    </div>
+                    <div class="auth-option" id="auth-opt-bank" onclick="selectAuthorityOption('BANK_AUTHORITY')">
+                        <div class="opt-icon">🏦</div>
+                        <div class="opt-name">Bank Authority</div>
+                        <div class="opt-desc">Nodal Bank Officer</div>
+                    </div>
+                </div>
+
+                <form onsubmit="handleAuthorityLoginSubmit(event)">
+                    <div class="form-group">
+                        <label>Authority Username</label>
+                        <input type="text" id="auth-username" value="cyber_authority" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="auth-password" value="admin123" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-accent full-width btn-lg">Login to Authority Portal</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- BANK TRANSACTION LOOKUP MODAL -->
+    <div id="modal-bank-txn" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>🏦 Authorised Bank Transaction Inspection</h3>
+                <button class="close-btn" onclick="closeModal('modal-bank-txn')">×</button>
+            </div>
+            <div class="modal-body" id="bank-modal-content">
+                <!-- Dynamically populated transaction details -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="./src/js/app.js"></script>
+</body>
+</html>

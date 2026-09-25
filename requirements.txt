@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+sqlalchemy
+pandas
+numpy
+scikit-learn
+joblib
+faker
+pydantic
+pyjwt
+passlib[bcrypt]
+python-multipart
+websockets
