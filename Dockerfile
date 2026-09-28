@@ -1,24 +1,28 @@
-# 1. Base Image: Use a lightweight Python image
+# Base Image: Lightweight Python
 FROM python:3.11-slim
 
-# 2. Prevent Python from buffering standard output / writing pyc files
+# Prevent Python from buffering standard output / writing pyc files
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PORT=8000
 
-# 3. Set working directory inside the container
+# Set working directory inside the container
 WORKDIR /app
 
-# 4. Copy requirements first to leverage Docker cache
+# Copy requirements first to leverage Docker cache
 COPY requirements.txt .
 
-# 5. Install Python dependencies
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6. Copy the rest of your application code
+# Copy application source code
 COPY . .
 
-# 7. Expose application port
+# Seed initial database for demonstration
+RUN python backend/seed_data.py
+
+# Expose port
 EXPOSE 8000
 
-# 8. Start command (e.g., using uvicorn for FastAPI/ASGI, or python main.py)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start command with dynamic PORT support for Cloud / Container platforms
+CMD ["sh", "-c", "uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
