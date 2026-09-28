@@ -1,7 +1,12 @@
 // CYRIS Frontend Application Engine - SIH 2026 Inter-Agency Multi-Persona System
 
-const API_BASE_URL = window.location.protocol + "//" + window.location.hostname + (window.location.port ? ":" + window.location.port : "");
-const WS_URL = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.hostname + (window.location.port ? ":" + window.location.port : "") + "/ws/alerts";
+const LOCAL_BACKEND_URL = "http://localhost:8000";
+const API_BASE_URL = window.location.protocol === "file:"
+    ? LOCAL_BACKEND_URL
+    : window.location.protocol + "//" + window.location.hostname + (window.location.port ? ":" + window.location.port : "");
+const WS_URL = window.location.protocol === "file:"
+    ? "ws://localhost:8000/ws/alerts"
+    : (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.hostname + (window.location.port ? ":" + window.location.port : "") + "/ws/alerts";
 
 // Global State
 let currentUser = null;
