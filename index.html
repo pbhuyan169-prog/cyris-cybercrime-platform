@@ -178,32 +178,45 @@
 
 
         <!-- AUTHORITY DASHBOARD SCREEN -->
-        <div id="screen-authority" class="screen">
+        <div id="screen-authority" class="screen persona-theme-cyber">
             <div class="portal-header">
                 <div>
-                    <h2 id="authority-title-heading">Cybercrime Authority Dashboard</h2>
+                    <span class="badge badge-sm badge-id" id="authority-role-badge">CYBER CELL OPERATOR</span>
+                    <h2 id="authority-title-heading" style="margin-top: 4px;">Cybercrime Authority Dashboard</h2>
                     <p id="authority-subtitle-heading">Multi-agency investigative portal with real-time AI risk prediction & GIS map.</p>
                 </div>
                 <button class="btn btn-secondary" onclick="showScreen('screen-landing')">← Switch Persona</button>
+            </div>
+
+            <!-- QUICK RESPONSE NOTIFICATION BANNER (For Police & Banker) -->
+            <div id="quick-response-banner-box" style="display: none;" class="quick-response-banner">
+                <div class="banner-content">
+                    <span class="banner-icon" id="qr-icon">🚨</span>
+                    <div>
+                        <div class="banner-title" id="qr-title">QUICK RESPONSE DISPATCH ALERT</div>
+                        <div class="banner-desc" id="qr-desc">New high-risk cybercrime complaint dispatched for quick response.</div>
+                    </div>
+                </div>
+                <button class="btn btn-accent btn-sm" id="qr-action-btn" onclick="handleQuickResponseAction()">Inspect & Respond Now</button>
             </div>
 
             <!-- METRIC CARDS -->
             <div class="metrics-grid">
                 <div class="metric-card">
                     <div class="metric-val" id="metric-total">16</div>
-                    <div class="metric-lbl">Total Complaints</div>
+                    <div class="metric-lbl" id="metric-lbl-1">Total Complaints</div>
                 </div>
                 <div class="metric-card danger">
                     <div class="metric-val" id="metric-high">6</div>
-                    <div class="metric-lbl">High-Risk Fraud Cases</div>
+                    <div class="metric-lbl" id="metric-lbl-2">High-Risk Cases</div>
                 </div>
                 <div class="metric-card warning">
                     <div class="metric-val" id="metric-alerts">4</div>
-                    <div class="metric-lbl">Pending Live Alerts</div>
+                    <div class="metric-lbl" id="metric-lbl-3">Pending Requests</div>
                 </div>
                 <div class="metric-card success">
                     <div class="metric-val" id="metric-verified">3</div>
-                    <div class="metric-lbl">Verified AI Predictions</div>
+                    <div class="metric-lbl" id="metric-lbl-4">Verified Predictions</div>
                 </div>
             </div>
 
@@ -242,14 +255,24 @@
                                 <p class="text-muted" id="detail-timestamp">Filed 15 minutes ago by Citizen</p>
                             </div>
                             <div class="status-action">
-                                <label>Update Investigation Status:</label>
-                                <select id="status-select" onchange="updateCaseStatus()">
-                                    <option value="Under Review">Under Review</option>
-                                    <option value="Pending Bank Freeze">Pending Bank Freeze</option>
-                                    <option value="Escalated to Police">Escalated to Police</option>
-                                    <option value="Action Taken">Action Taken</option>
-                                    <option value="Resolved">Resolved</option>
-                                </select>
+                                <label>Persona Actions & Workflow:</label>
+                                <div class="action-btn-bar" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <button id="btn-request-bank" class="btn btn-warning btn-sm" onclick="requestBankDetailsAction()">📩 Request Bank Details</button>
+                                    <button id="btn-provide-bank" class="btn btn-success btn-sm" onclick="provideBankDetailsAction()">🏦 Provide Details to Cyber Cell</button>
+                                    <button id="btn-notify-police" class="btn btn-accent btn-sm" onclick="notifyPoliceAction()">🚓 Notify & Dispatch to Police</button>
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <label>Investigation Status:</label>
+                                    <select id="status-select" onchange="updateCaseStatus()">
+                                        <option value="Under Cyber Cell Review">Under Cyber Cell Review</option>
+                                        <option value="Bank Info Requested">Bank Info Requested</option>
+                                        <option value="Bank Details Provided">Bank Details Provided</option>
+                                        <option value="Notified to Police">Notified to Police</option>
+                                        <option value="Pending Bank Freeze">Pending Bank Freeze</option>
+                                        <option value="Action Taken">Action Taken</option>
+                                        <option value="Resolved">Resolved</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 

@@ -46,6 +46,8 @@ class Complaint(Base):
     evidence_filename = Column(String, nullable=True)
     status = Column(String, default="Under Review") # Under Review, Pending Bank Freeze, Escalated, Action Taken, Resolved
     assigned_authority = Column(String, default="CYBER_AUTHORITY") # Default recipient
+    bank_request_status = Column(String, default="NOT_REQUESTED") # NOT_REQUESTED, REQUESTED_FROM_BANK, PROVIDED_BY_BANK
+    police_notified = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

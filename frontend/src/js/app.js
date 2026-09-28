@@ -1,4 +1,4 @@
-// CYRIS Frontend Application Engine - SIH 2026
+// CYRIS Frontend Application Engine - SIH 2026 Inter-Agency Multi-Persona System
 
 const API_BASE_URL = window.location.protocol + "//" + window.location.hostname + (window.location.port ? ":" + window.location.port : "");
 const WS_URL = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.hostname + (window.location.port ? ":" + window.location.port : "") + "/ws/alerts";
@@ -16,7 +16,7 @@ let socket = null;
 
 // Initialization
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("CYRIS Platform Initializing...");
+    console.log("CYRIS Platform Initializing Inter-Agency Multi-Persona Engine...");
     initWebSocket();
     fetchComplaints();
     fetchGISLocations();
@@ -47,7 +47,6 @@ function initWebSocket() {
                 badge.className = "badge-socket disconnected";
                 badge.innerHTML = `<span class="dot"></span> Live Alerts: Offline`;
             }
-            // Reconnect after 3 seconds
             setTimeout(initWebSocket, 3000);
         };
     } catch (e) {
@@ -60,6 +59,21 @@ function handleRealTimeSocketEvent(data) {
         showToastAlert(`🚨 New Complaint Registered: ${data.complaintId}`, `High Risk ${data.fraudType} (₹${data.amount.toLocaleString()}) filed in ${data.location.city}. Score: ${data.riskScore}`);
         fetchComplaints();
         fetchGISLocations();
+    } else if (data.event === "BANK_DETAILS_REQUESTED") {
+        showToastAlert(`📩 Bank Info Requested`, `Cyber Cell requested transaction details for ${data.complaintId}`);
+        if (currentSelectedAuthority === "BANK_AUTHORITY") {
+            triggerQuickResponseAlert("📩 URGENT BANK REQUEST", `Cyber Cell requested transaction details for ${data.complaintId}`, "Approve & Provide Details");
+        }
+        fetchComplaints(data.complaintId);
+    } else if (data.event === "BANK_DETAILS_PROVIDED") {
+        showToastAlert(`🏦 Bank Details Provided`, `Bank approved & provided transaction details for ${data.complaintId}`);
+        fetchComplaints(data.complaintId);
+    } else if (data.event === "NOTIFIED_TO_POLICE") {
+        showToastAlert(`🚓 Dispatched to Police`, `Cyber Cell analyzed and notified Police of case ${data.complaintId}`);
+        if (currentSelectedAuthority === "POLICE") {
+            triggerQuickResponseAlert("🚨 QUICK RESPONSE DISPATCH ALERT", `Case ${data.complaintId} analyzed by Cyber Cell and dispatched to Police!`, "Inspect & Respond Now");
+        }
+        fetchComplaints(data.complaintId);
     } else if (data.event === "PREDICTION_VERIFIED") {
         showToastAlert(`✓ Prediction Updated`, `Complaint ${data.complaintId} verified as ${data.verificationStatus}`);
         if (activeComplaint && activeComplaint.complaintId === data.complaintId) {
@@ -88,6 +102,18 @@ function showToastAlert(title, body) {
     }, 5000);
 }
 
+function triggerQuickResponseAlert(title, desc, buttonText) {
+    const qrBanner = document.getElementById("quick-response-banner-box");
+    if (!qrBanner) return;
+    qrBanner.style.display = "flex";
+    const qrTitle = document.getElementById("qr-title");
+    const qrDesc = document.getElementById("qr-desc");
+    const qrBtn = document.getElementById("qr-action-btn");
+    if (qrTitle) qrTitle.innerText = title;
+    if (qrDesc) qrDesc.innerText = desc;
+    if (qrBtn) qrBtn.innerText = buttonText;
+}
+
 // Navigation & Screen Management
 function showScreen(screenId) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -95,6 +121,7 @@ function showScreen(screenId) {
     if (target) target.classList.add("active");
 
     if (screenId === "screen-authority") {
+        applyPersonaTheme(currentSelectedAuthority);
         fetchComplaints();
         setTimeout(() => {
             initLeafletMap();
@@ -137,6 +164,79 @@ function selectAuthorityOption(authRole) {
     }
 }
 
+// Persona Interface Theme Customizer
+function applyPersonaTheme(role) {
+    const screenAuth = document.getElementById("screen-authority");
+    if (!screenAuth) return;
+
+    const roleBadge = document.getElementById("authority-role-badge");
+    const titleHeading = document.getElementById("authority-title-heading");
+    const subtitleHeading = document.getElementById("authority-subtitle-heading");
+    const qrBanner = document.getElementById("quick-response-banner-box");
+    const metricLbl1 = document.getElementById("metric-lbl-1");
+    const metricLbl2 = document.getElementById("metric-lbl-2");
+    const metricLbl3 = document.getElementById("metric-lbl-3");
+    const metricLbl4 = document.getElementById("metric-lbl-4");
+    const qrIcon = document.getElementById("qr-icon");
+    const qrTitle = document.getElementById("qr-title");
+    const qrDesc = document.getElementById("qr-desc");
+    const qrBtn = document.getElementById("qr-action-btn");
+
+    screenAuth.classList.remove("persona-theme-cyber", "persona-theme-bank", "persona-theme-police");
+
+    if (role === "POLICE") {
+        screenAuth.classList.add("persona-theme-police");
+        if (roleBadge) { roleBadge.innerText = "POLICE FIELD COMMANDER"; roleBadge.className = "badge badge-sm badge-danger"; }
+        if (titleHeading) titleHeading.innerText = "🚓 Police Field Unit Dispatch & Quick Response Console";
+        if (subtitleHeading) subtitleHeading.innerText = "Tactical response console displaying cases analyzed by Cyber Cell for immediate field unit dispatch & GIS heatmap.";
+        if (metricLbl1) metricLbl1.innerText = "Dispatched Police Cases";
+        if (metricLbl2) metricLbl2.innerText = "Critical Response Cases";
+        if (metricLbl3) metricLbl3.innerText = "Pending Field Actions";
+        if (metricLbl4) metricLbl4.innerText = "Resolved Interceptions";
+        if (qrBanner) qrBanner.style.display = "flex";
+        if (qrIcon) qrIcon.innerText = "🚨";
+        if (qrTitle) qrTitle.innerText = "QUICK RESPONSE DISPATCH ALERT";
+        if (qrDesc) qrDesc.innerText = "Cases analyzed by Cyber Cell dispatched for immediate field response.";
+        if (qrBtn) qrBtn.innerText = "Inspect & Dispatch Unit Now";
+
+    } else if (role === "BANK_AUTHORITY") {
+        screenAuth.classList.add("persona-theme-bank");
+        if (roleBadge) { roleBadge.innerText = "BANK NODAL OFFICER"; roleBadge.className = "badge badge-sm badge-success"; }
+        if (titleHeading) titleHeading.innerText = "🏦 Nodal Bank Officer — Transaction Inspection Console";
+        if (subtitleHeading) subtitleHeading.innerText = "Authorised bank transaction inspection portal. Displays ONLY complaints for which Cyber Cell requested bank details.";
+        if (metricLbl1) metricLbl1.innerText = "Incoming Bank Requests";
+        if (metricLbl2) metricLbl2.innerText = "High-Value Transactions";
+        if (metricLbl3) metricLbl3.innerText = "Pending Info Requests";
+        if (metricLbl4) metricLbl4.innerText = "Released Account Records";
+        if (qrBanner) qrBanner.style.display = "flex";
+        if (qrIcon) qrIcon.innerText = "📩";
+        if (qrTitle) qrTitle.innerText = "TRANSACTION DETAIL REQUEST";
+        if (qrDesc) qrDesc.innerText = "Cyber Cell requested transaction details for cybercrime complaints.";
+        if (qrBtn) qrBtn.innerText = "Approve & Provide Details";
+
+    } else {
+        // CYBER_AUTHORITY (default)
+        screenAuth.classList.add("persona-theme-cyber");
+        if (roleBadge) { roleBadge.innerText = "CYBER CELL CHIEF"; roleBadge.className = "badge badge-sm badge-accent"; }
+        if (titleHeading) titleHeading.innerText = "🛡️ Cyber Cell Command & AI Intelligence Center";
+        if (subtitleHeading) subtitleHeading.innerText = "Receives registered citizen complaints, requests bank transaction details, runs AI risk analysis, and notifies Police.";
+        if (metricLbl1) metricLbl1.innerText = "Total Citizen Complaints";
+        if (metricLbl2) metricLbl2.innerText = "High-Risk AI Signals";
+        if (metricLbl3) metricLbl3.innerText = "Pending Bank Requests";
+        if (metricLbl4) metricLbl4.innerText = "Verified AI Predictions";
+        if (qrBanner) qrBanner.style.display = "none";
+    }
+}
+
+function handleQuickResponseAction() {
+    if (complaintsData && complaintsData.length > 0) {
+        selectComplaint(complaintsData[0].complaintId);
+        showToastAlert("Quick Response Action", `Inspecting case ${complaintsData[0].complaintId}`);
+    } else {
+        showToastAlert("Queue Clear", "No active quick response cases pending in queue.");
+    }
+}
+
 // Authority Login Submit
 async function handleAuthorityLoginSubmit(e) {
     e.preventDefault();
@@ -164,13 +264,9 @@ async function handleAuthorityLoginSubmit(e) {
         document.getElementById("current-user-pill").style.display = "flex";
         document.getElementById("user-role-label").innerText = `${data.role}: ${data.username}`;
 
-        // Header Title
-        const titleHeading = document.getElementById("authority-title-heading");
-        if (data.role === "POLICE") titleHeading.innerText = "Police & Investigator Cyber Dashboard";
-        else if (data.role === "BANK_AUTHORITY") titleHeading.innerText = "Nodal Bank Officer Dashboard";
-        else titleHeading.innerText = "Cybercrime Authority Intelligence Dashboard";
-
+        // Show the authority screen FIRST, then apply persona (elements must be in DOM)
         showScreen("screen-authority");
+        // applyPersonaTheme is also called inside showScreen — double-call is safe due to null-guards
     } catch (err) {
         alert("Authority Login Failed: " + err.message);
     }
@@ -194,7 +290,6 @@ async function handleComplaintSubmit(e) {
 
     pendingOTPPhone = phone;
 
-    // Request Real-Time OTP
     try {
         const res = await fetch(`${API_BASE_URL}/api/auth/register-otp`, {
             method: "POST",
@@ -208,7 +303,6 @@ async function handleComplaintSubmit(e) {
         }
         openModal("modal-otp");
     } catch (err) {
-        // Fallback for hackathon demo preview
         document.getElementById("otp-code-display").innerText = "123456";
         openModal("modal-otp");
     }
@@ -223,7 +317,6 @@ async function submitOTPVerification() {
 
     closeModal("modal-otp");
 
-    // Proceed to post complaint
     const payload = {
         full_name: document.getElementById("c-name").value.trim(),
         phone_number: pendingOTPPhone,
@@ -249,9 +342,8 @@ async function submitOTPVerification() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "Failed to register complaint");
 
-        alert(`✅ Cybercrime Complaint Registered Successfully!\n\nUnique Complaint ID: ${data.complaintId}\nStatus: Under Review\nAssigned Authority: Cyber Authority`);
+        alert(`✅ Cybercrime Complaint Registered Successfully!\n\nUnique Complaint ID: ${data.complaintId}\nStatus: Under Cyber Cell Review\nAssigned Authority: Cyber Cell`);
 
-        // Add to Citizen's My Complaints tab
         renderCitizenComplaint(data);
         switchCitizenTab("my-tab");
         document.getElementById("form-complaint").reset();
@@ -287,32 +379,34 @@ function renderCitizenComplaint(c) {
         </div>
         <div class="ci-title">${c.fraudType || 'UPI Fraud'}</div>
         <div class="ci-footer">
-            <span>Status: <b class="badge badge-status">${c.status || 'Under Review'}</b></span>
-            <span>Routed to Cyber Authority</span>
+            <span>Status: <b class="badge badge-status">${c.status || 'Under Cyber Cell Review'}</b></span>
+            <span>Assigned to Cyber Cell</span>
         </div>
     `;
     list.prepend(item);
 }
 
-// Authority Complaints Fetch & Rendering
+// Authority Complaints Fetch & Filtering per Persona
 async function fetchComplaints(preserveSelectedId = null) {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/complaints`);
+        const roleParam = currentSelectedAuthority ? `?authority_role=${currentSelectedAuthority}` : "";
+        const res = await fetch(`${API_BASE_URL}/api/complaints${roleParam}`);
         const data = await res.json();
         complaintsData = data;
         renderComplaintList(data);
 
-        // Calculate Stats
         document.getElementById("metric-total").innerText = data.length;
         document.getElementById("metric-high").innerText = data.filter(c => c.riskLevel === "HIGH").length;
 
-        // Auto select complaint while preserving currently active selection
         if (data.length > 0) {
             const targetId = preserveSelectedId || (activeComplaint ? activeComplaint.complaintId : null);
-            const selectedCase = targetId ? data.find(c => c.complaintId === targetId) : (data.find(c => c.complaintId === "CMP-2026-1001") || data[0]);
+            const selectedCase = targetId ? data.find(c => c.complaintId === targetId) : data[0];
             if (selectedCase) {
                 selectComplaint(selectedCase.complaintId);
             }
+        } else {
+            document.getElementById("case-detail-empty").style.display = "block";
+            document.getElementById("case-detail-content").style.display = "none";
         }
     } catch (e) {
         console.error("Error fetching complaints:", e);
@@ -325,7 +419,7 @@ function renderComplaintList(items) {
 
     container.innerHTML = "";
     if (items.length === 0) {
-        container.innerHTML = `<p class="text-muted" style="padding: 20px;">No matching complaints found.</p>`;
+        container.innerHTML = `<p class="text-muted" style="padding: 20px;">No matching cases in this queue.</p>`;
         return;
     }
 
@@ -344,7 +438,7 @@ function renderComplaintList(items) {
             <div class="ci-title">${c.fraudType}</div>
             <div class="ci-footer">
                 <span>Risk: <b class="badge ${badgeClass}">${c.riskLevel}</b></span>
-                <span>Status: ${c.status}</span>
+                <span>${c.status}</span>
             </div>
         `;
         container.appendChild(div);
@@ -368,14 +462,13 @@ function handleSearch() {
     renderComplaintList(filtered);
 }
 
-// Case Details Inspector View
+// Case Details Inspector View & Persona-based Actions
 async function selectComplaint(complaintId) {
     try {
         const res = await fetch(`${API_BASE_URL}/api/complaints/${complaint_id_encode(complaintId)}`);
         const c = await res.json();
         activeComplaint = c;
 
-        // Re-render list selection border
         document.querySelectorAll(".complaint-item").forEach(el => {
             if (el.querySelector(".ci-id").innerText === complaintId) el.classList.add("selected");
             else el.classList.remove("selected");
@@ -384,7 +477,6 @@ async function selectComplaint(complaintId) {
         document.getElementById("case-detail-empty").style.display = "none";
         document.getElementById("case-detail-content").style.display = "block";
 
-        // Fill Data
         document.getElementById("detail-cmp-id").innerText = c.complaintId;
         document.getElementById("detail-status").innerText = c.status;
         document.getElementById("detail-fraud-title").innerText = `${c.fraudType} - ₹${c.amount.toLocaleString()}`;
@@ -395,7 +487,31 @@ async function selectComplaint(complaintId) {
         document.getElementById("detail-txid").innerText = c.transactionId || "TXN-88421";
         document.getElementById("detail-city").innerText = `${c.city}, ${c.state}`;
 
-        // AI Score
+        // Persona Action Control Toggle
+        const btnRequestBank = document.getElementById("btn-request-bank");
+        const btnProvideBank = document.getElementById("btn-provide-bank");
+        const btnNotifyPolice = document.getElementById("btn-notify-police");
+
+        if (currentSelectedAuthority === "CYBER_AUTHORITY") {
+            btnRequestBank.style.display = "inline-block";
+            btnNotifyPolice.style.display = "inline-block";
+            btnProvideBank.style.display = "none";
+
+            btnRequestBank.innerText = c.bankRequestStatus === "REQUESTED_FROM_BANK" ? "⏳ Bank Info Requested" : (c.bankRequestStatus === "PROVIDED_BY_BANK" ? "✓ Bank Details Received" : "📩 Request Bank Details");
+            btnNotifyPolice.innerText = c.policeNotified ? "✓ Notified to Police" : "调度 Notify & Dispatch to Police";
+        } else if (currentSelectedAuthority === "BANK_AUTHORITY") {
+            btnRequestBank.style.display = "none";
+            btnNotifyPolice.style.display = "none";
+            btnProvideBank.style.display = "inline-block";
+
+            btnProvideBank.innerText = c.bankRequestStatus === "PROVIDED_BY_BANK" ? "✓ Details Provided to Cyber Cell" : "🏦 Provide Details to Cyber Cell";
+        } else if (currentSelectedAuthority === "POLICE") {
+            btnRequestBank.style.display = "none";
+            btnProvideBank.style.display = "none";
+            btnNotifyPolice.style.display = "none";
+        }
+
+        // AI Score Display
         const riskObj = c.prediction || { riskScore: 0.87, riskLevel: "HIGH", confidence: 0.89, status: "Pending Verification" };
         document.getElementById("detail-risk-score").innerText = riskObj.riskScore;
         document.getElementById("detail-risk-level").innerText = riskObj.riskLevel;
@@ -415,10 +531,9 @@ async function selectComplaint(complaintId) {
             scoreElem.style.color = "#10b981";
         }
 
-        // Status Select
         document.getElementById("status-select").value = c.status;
 
-        // Similar cases
+        // Similar Cases
         const simList = document.getElementById("similar-cases-list");
         simList.innerHTML = "";
         if (c.relatedCases && c.relatedCases.length > 0) {
@@ -441,6 +556,55 @@ async function selectComplaint(complaintId) {
 
 function complaint_id_encode(id) {
     return encodeURIComponent(id);
+}
+
+// Persona Inter-Agency Workflow Handlers
+async function requestBankDetailsAction() {
+    if (!activeComplaint) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/complaints/${activeComplaint.complaintId}/request-bank-details`, {
+            method: "POST"
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToastAlert("📩 Bank Info Requested", `Transaction details requested from Bank for ${activeComplaint.complaintId}`);
+            fetchComplaints(activeComplaint.complaintId);
+        }
+    } catch (e) {
+        alert("Error sending bank details request");
+    }
+}
+
+async function provideBankDetailsAction() {
+    if (!activeComplaint) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/complaints/${activeComplaint.complaintId}/provide-bank-details`, {
+            method: "POST"
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToastAlert("🏦 Details Provided", `Transaction details for ${activeComplaint.complaintId} provided to Cyber Cell.`);
+            fetchComplaints(activeComplaint.complaintId);
+        }
+    } catch (e) {
+        alert("Error providing bank details");
+    }
+}
+
+async function notifyPoliceAction() {
+    if (!activeComplaint) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/complaints/${activeComplaint.complaintId}/notify-police`, {
+            method: "POST"
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToastAlert("调度 Police Notified", `Complaint ${activeComplaint.complaintId} analyzed & dispatched to Police.`);
+            fetchComplaints(activeComplaint.complaintId);
+        }
+    } catch (e) {
+        alert("Error notifying Police");
+    }
 }
 
 // Update Case Status
@@ -473,7 +637,6 @@ async function verifyPrediction(statusVal) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status: statusVal, notes: "Verified by investigator" })
         });
-        const data = await res.json();
         document.getElementById("prediction-verify-status").innerText = `Status: ${statusVal}`;
         alert(`Prediction marked as '${statusVal}'`);
     } catch (e) {
@@ -530,14 +693,13 @@ async function lookupBankTransaction() {
     }
 }
 
-// Leaflet GIS High-Risk Cash-Out Map Integration
+// Leaflet GIS High-Risk Cash-Out Heatmap Integration
 function initLeafletMap() {
     if (leafletMap) return;
 
     const mapContainer = document.getElementById("gis-map");
     if (!mapContainer) return;
 
-    // Center on Bhubaneswar (20.2961, 85.8245)
     leafletMap = L.map("gis-map").setView([20.2961, 85.8245], 12);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -558,7 +720,6 @@ async function fetchGISLocations() {
 function renderMapMarkers(locations) {
     if (!leafletMap) return;
 
-    // Clear existing markers
     mapMarkers.forEach(m => m.remove());
     mapMarkers = [];
 
@@ -583,7 +744,7 @@ function renderMapMarkers(locations) {
                 <div><b>Suspicious Tx Count:</b> ${loc.suspiciousTxCount}</div>
                 <div><b>Last Tx Time:</b> ${loc.lastTxTime}</div>
                 <hr style="margin: 6px 0; border: none; border-top: 1px solid #ddd;">
-                <small style="color: #666; font-style: italic;">* Decision-support prediction of potential cash-out area.</small>
+                <small style="color: #666; font-style: italic;">* Interactive GIS Heatmap hotspot.</small>
             </div>
         `;
 

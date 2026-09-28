@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 
 from backend.app.database import get_db
 from backend.app.models import Complaint, Prediction, Alert, RelatedCase, InvestigationUpdate, AuditLog
@@ -15,32 +15,50 @@ router = APIRouter(prefix="/api/complaints", tags=["Complaints"])
 
 @router.post("", response_model=dict)
 async def submit_complaint(
-    complaint: ComplaintCreate,
+    payload: Union[ComplaintCreate, Dict[str, Any]],
     db: Session = Depends(get_db)
 ):
-    # Generate unique complaint ID
+    if isinstance(payload, ComplaintCreate):
+        data = payload.dict()
+    else:
+        data = payload
+
+    full_name = data.get("full_name") or data.get("victim_acc") or "Anonymous Victim"
+    phone_number = data.get("phone_number") or "+919876543210"
+    email = data.get("email")
+    fraud_type_raw = data.get("fraud_type") or "UPI_FRAUD"
+    fraud_type_str = str(fraud_type_raw).upper().replace(" ", "_")
+    transaction_id = data.get("transaction_id") or f"TXN-{uuid.uuid4().hex[:5].upper()}"
+    amount = float(data.get("amount") or 0.0)
+    upi_id = data.get("upi_id") or data.get("suspect_info")
+    city = data.get("city") or "Bhubaneswar"
+    state = data.get("state") or "Odisha"
+    latitude = float(data.get("latitude") or 20.2961)
+    longitude = float(data.get("longitude") or 85.8245)
+    description = data.get("description") or f"Incident report logged for {fraud_type_str} involving ₹{amount:,.2f}"
+
     unique_suffix = str(uuid.uuid4().hex[:4]).upper()
     complaint_id = f"CMP-2026-{unique_suffix}"
     
-    # Standardize fraud type
-    fraud_type_str = complaint.fraud_type.upper().replace(" ", "_")
-    
+    # All newly registered user complaints automatically go directly to Cyber Cell
     db_complaint = Complaint(
         complaint_id=complaint_id,
-        full_name=complaint.full_name,
-        phone_number=complaint.phone_number,
-        email=complaint.email,
+        full_name=full_name,
+        phone_number=phone_number,
+        email=email,
         fraud_type=fraud_type_str,
-        transaction_id=complaint.transaction_id or f"TXN-{uuid.uuid4().hex[:5].upper()}",
-        amount=complaint.amount,
-        upi_id=complaint.upi_id,
-        city=complaint.city or "Bhubaneswar",
-        state=complaint.state or "Odisha",
-        latitude=complaint.latitude or 20.2961,
-        longitude=complaint.longitude or 85.8245,
-        description=complaint.description,
-        status="Under Review",
-        assigned_authority="CYBER_AUTHORITY" # Automatically routes to Cyber Authority
+        transaction_id=transaction_id,
+        amount=amount,
+        upi_id=upi_id,
+        city=city,
+        state=state,
+        latitude=latitude,
+        longitude=longitude,
+        description=description,
+        status="Under Cyber Cell Review",
+        assigned_authority="CYBER_AUTHORITY",
+        bank_request_status="NOT_REQUESTED",
+        police_notified=False
     )
     db.add(db_complaint)
     db.commit()
@@ -49,7 +67,7 @@ async def submit_complaint(
     # Execute ML Risk Prediction
     ml_result = predict_complaint_risk(
         fraud_type=fraud_type_str,
-        amount=complaint.amount
+        amount=amount
     )
     
     # Save Prediction to DB
@@ -63,27 +81,25 @@ async def submit_complaint(
     db.add(pred_obj)
 
     # Check alert threshold
-    alert_created = False
     if ml_result["riskScore"] >= 0.70:
-        alert_created = True
         cash_out = ml_result["cashOutLocation"]
         alert_obj = Alert(
             complaint_id=complaint_id,
             risk_score=ml_result["riskScore"],
             location_name=cash_out["locationName"],
-            reason=f"High-Risk {fraud_type_str} detected (₹{complaint.amount:,.2f})",
+            reason=f"High-Risk {fraud_type_str} detected (₹{amount:,.2f})",
             verification_status="Pending"
         )
         db.add(alert_obj)
         
     db.commit()
 
-    # Real-Time WebSocket broadcast payload to all authority clients
+    # Real-Time WebSocket broadcast payload to Cyber Cell
     websocket_payload = {
         "event": "NEW_COMPLAINT_SUBMITTED",
         "complaintId": complaint_id,
         "fraudType": fraud_type_str,
-        "amount": complaint.amount,
+        "amount": amount,
         "location": {"city": db_complaint.city, "latitude": db_complaint.latitude, "longitude": db_complaint.longitude},
         "riskScore": ml_result["riskScore"],
         "riskLevel": ml_result["riskLevel"],
@@ -95,23 +111,32 @@ async def submit_complaint(
 
     return {
         "success": True,
+        "status": "success",
         "complaintId": complaint_id,
-        "status": "Under Review",
         "assignedAuthority": "CYBER_AUTHORITY",
         "riskScore": ml_result["riskScore"],
         "riskLevel": ml_result["riskLevel"],
         "cashOutLocation": ml_result["cashOutLocation"],
-        "message": "Complaint successfully registered and routed to Cyber Authority."
+        "message": "Complaint registered successfully and assigned directly to Cyber Cell."
     }
 
 @router.get("")
 def list_complaints(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
+    authority_role: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     query = db.query(Complaint)
     
+    # Persona filtering rules
+    if authority_role == "BANK_AUTHORITY":
+        # Banker sees ONLY complaints for which Cyber Cell has requested transaction details!
+        query = query.filter(Complaint.bank_request_status.in_(["REQUESTED_FROM_BANK", "PROVIDED_BY_BANK"]))
+    elif authority_role == "POLICE":
+        # Police see ONLY cases analyzed by Cyber Cell and notified to Police!
+        query = query.filter((Complaint.police_notified == True) | (Complaint.assigned_authority == "POLICE"))
+        
     if search:
         s = f"%{search.strip()}%"
         query = query.filter(
@@ -131,7 +156,9 @@ def list_complaints(
         latest_pred = db.query(Prediction).filter(Prediction.complaint_id == c.complaint_id).order_by(Prediction.id.desc()).first()
         results.append({
             "complaintId": c.complaint_id,
+            "complaint_id": c.complaint_id,
             "fullName": c.full_name,
+            "victim": c.full_name,
             "phoneNumberMasked": mask_phone(c.phone_number),
             "emailMasked": mask_email(c.email) if c.email else None,
             "fraudType": c.fraud_type,
@@ -144,6 +171,8 @@ def list_complaints(
             "description": c.description,
             "status": c.status,
             "assignedAuthority": c.assigned_authority,
+            "bankRequestStatus": c.bank_request_status or "NOT_REQUESTED",
+            "policeNotified": c.police_notified or False,
             "timestamp": c.created_at.isoformat(),
             "riskScore": latest_pred.risk_score if latest_pred else 0.50,
             "riskLevel": latest_pred.risk_level if latest_pred else "MEDIUM"
@@ -160,7 +189,6 @@ def get_complaint_by_id(complaint_id: str, db: Session = Depends(get_db)):
     pred = db.query(Prediction).filter(Prediction.complaint_id == complaint_id).order_by(Prediction.id.desc()).first()
     alerts = db.query(Alert).filter(Alert.complaint_id == complaint_id).all()
     
-    # Related cases simulation
     related = db.query(RelatedCase).filter(
         (RelatedCase.complaint_id_1 == complaint_id) | (RelatedCase.complaint_id_2 == complaint_id)
     ).all()
@@ -189,6 +217,8 @@ def get_complaint_by_id(complaint_id: str, db: Session = Depends(get_db)):
         "description": c.description,
         "status": c.status,
         "assignedAuthority": c.assigned_authority,
+        "bankRequestStatus": c.bank_request_status or "NOT_REQUESTED",
+        "policeNotified": c.police_notified or False,
         "timestamp": c.created_at.isoformat(),
         "prediction": {
             "riskScore": pred.risk_score if pred else 0.50,
@@ -198,6 +228,85 @@ def get_complaint_by_id(complaint_id: str, db: Session = Depends(get_db)):
         },
         "relatedCases": related_list,
         "alertsCount": len(alerts)
+    }
+
+@router.post("/{complaint_id}/request-bank-details")
+async def request_bank_details(complaint_id: str, db: Session = Depends(get_db)):
+    """Cyber Cell requests transaction details from the Bank for this specific complaint."""
+    c = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+        
+    c.bank_request_status = "REQUESTED_FROM_BANK"
+    c.status = "Bank Info Requested"
+    db.commit()
+    
+    await manager.broadcast({
+        "event": "BANK_DETAILS_REQUESTED",
+        "complaintId": complaint_id,
+        "transactionId": c.transaction_id,
+        "amount": c.amount,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+    
+    return {
+        "success": True,
+        "complaintId": complaint_id,
+        "bankRequestStatus": "REQUESTED_FROM_BANK",
+        "message": f"Transaction details request sent to Bank for Complaint {complaint_id}."
+    }
+
+@router.post("/{complaint_id}/provide-bank-details")
+async def provide_bank_details(complaint_id: str, db: Session = Depends(get_db)):
+    """Banker approves and provides transaction details to Cyber Cell for this requested complaint."""
+    c = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+        
+    c.bank_request_status = "PROVIDED_BY_BANK"
+    c.status = "Bank Details Provided"
+    db.commit()
+    
+    await manager.broadcast({
+        "event": "BANK_DETAILS_PROVIDED",
+        "complaintId": complaint_id,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+    
+    return {
+        "success": True,
+        "complaintId": complaint_id,
+        "bankRequestStatus": "PROVIDED_BY_BANK",
+        "message": f"Transaction details for Complaint {complaint_id} provided by Bank to Cyber Cell."
+    }
+
+@router.post("/{complaint_id}/notify-police")
+async def notify_police(complaint_id: str, db: Session = Depends(get_db)):
+    """Cyber Cell analyzes the complaint with AI and notifies/dispatches the details to Police."""
+    c = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+        
+    c.police_notified = True
+    c.assigned_authority = "POLICE"
+    c.status = "Notified to Police"
+    db.commit()
+    
+    await manager.broadcast({
+        "event": "NOTIFIED_TO_POLICE",
+        "complaintId": complaint_id,
+        "fraudType": c.fraud_type,
+        "amount": c.amount,
+        "city": c.city,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+    
+    return {
+        "success": True,
+        "complaintId": complaint_id,
+        "policeNotified": True,
+        "status": "Notified to Police",
+        "message": f"Complaint {complaint_id} analyzed by AI and dispatched to Police."
     }
 
 @router.put("/{complaint_id}/status")
@@ -224,7 +333,6 @@ async def update_complaint_status(
     db.add(log)
     db.commit()
     
-    # Broadcast real-time status update via WebSocket
     await manager.broadcast({
         "event": "STATUS_UPDATED",
         "complaintId": complaint_id,

@@ -66,6 +66,7 @@ def get_fraud_rings():
 
 
 @router.get("/api/analytics/hotspots")
+@router.get("/api/v1/analytics/ai-hotspots")
 def get_hotspots():
     if os.path.exists(HOTSPOT_DATA_PATH):
         try:
@@ -82,12 +83,52 @@ def get_hotspots():
     return {
         "total": 4,
         "hotspots": [
-            {"city": "Bhubaneswar", "latitude": 20.2961, "longitude": 85.8245, "risk_level": "HIGH"},
-            {"city": "Bhubaneswar", "latitude": 20.3548, "longitude": 85.8153, "risk_level": "HIGH"},
-            {"city": "Bhubaneswar", "latitude": 20.2882, "longitude": 85.8436, "risk_level": "MEDIUM"},
-            {"city": "Bhubaneswar", "latitude": 20.2577, "longitude": 85.7831, "risk_level": "LOW"}
+            {"target_atm": "ATM_101", "bank": "SBI", "pincode": 110001, "lat": 20.2961, "lng": 85.8245, "risk_level": "CRITICAL", "avg_ai_risk": 89},
+            {"target_atm": "ATM_102", "bank": "HDFC", "pincode": 110002, "lat": 20.3548, "lng": 85.8153, "risk_level": "CRITICAL", "avg_ai_risk": 82},
+            {"target_atm": "ATM_103", "bank": "ICICI", "pincode": 110003, "lat": 20.2882, "lng": 85.8436, "risk_level": "MEDIUM", "avg_ai_risk": 58},
+            {"target_atm": "ATM_104", "bank": "Axis", "pincode": 110004, "lat": 20.2577, "lng": 85.7831, "risk_level": "MEDIUM", "avg_ai_risk": 35}
         ],
         "source": "complaint data fallback"
+    }
+
+
+@router.get("/api/v1/analytics/mule-network")
+def get_mule_network(db: Session = Depends(get_db)):
+    complaints = db.query(Complaint).limit(10).all()
+    nodes = set()
+    edges = []
+    
+    for c in complaints:
+        v = c.full_name or "Victim"
+        l1 = c.upi_id or "Layer 1 Mule"
+        l2 = f"ACC_L2_{hash(c.complaint_id) % 40 + 50}"
+        l3 = f"ACC_L3_{hash(c.complaint_id) % 40 + 90}"
+        atm = f"ATM_{c.city.upper()}"
+        amt = c.amount or 25000.0
+
+        nodes.add((v, "Victim"))
+        nodes.add((l1, "Layer 1 Mule"))
+        nodes.add((l2, "Layer 2 Mule"))
+        nodes.add((l3, "Layer 3 Mule"))
+        nodes.add((atm, "Cashout ATM"))
+
+        edges.append({"source": v, "target": l1, "label": f"₹{amt:,.0f}"})
+        edges.append({"source": l1, "target": l2, "label": f"₹{int(amt * 0.95):,}"})
+        edges.append({"source": l2, "target": l3, "label": f"₹{int(amt * 0.90):,}"})
+        edges.append({"source": l3, "target": atm, "label": f"Cashout ₹{int(amt * 0.85):,}"})
+
+    if not nodes:
+        nodes.add(("Rajesh Mohanty", "Victim"))
+        nodes.add(("fastcash.refund@ybl", "Layer 1 Mule"))
+        nodes.add(("ACC_L2_78", "Layer 2 Mule"))
+        nodes.add(("ATM_BHUBANESWAR", "Cashout ATM"))
+        edges.append({"source": "Rajesh Mohanty", "target": "fastcash.refund@ybl", "label": "₹25,000"})
+        edges.append({"source": "fastcash.refund@ybl", "target": "ACC_L2_78", "label": "₹23,750"})
+        edges.append({"source": "ACC_L2_78", "target": "ATM_BHUBANESWAR", "label": "Cashout ₹21,250"})
+
+    return {
+        "nodes": [{"id": n, "group": g} for n, g in nodes],
+        "edges": edges
     }
 
 

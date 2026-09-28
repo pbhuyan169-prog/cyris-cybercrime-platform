@@ -791,3 +791,51 @@ input:focus, select:focus, textarea:focus {
 
 .toast-title { font-weight: 700; color: var(--color-danger); font-size: 0.95rem; margin-bottom: 4px; }
 .toast-body { font-size: 0.85rem; color: var(--text-main); }
+
+/* PERSONA THEME CUSTOMIZATION & QUICK RESPONSE BANNER */
+.persona-theme-cyber {
+    border-top: 4px solid #a855f7;
+    background: radial-gradient(at 10% 10%, rgba(168, 85, 247, 0.12) 0px, transparent 60%);
+}
+
+.persona-theme-bank {
+    border-top: 4px solid #10b981;
+    background: radial-gradient(at 10% 10%, rgba(16, 185, 129, 0.15) 0px, transparent 60%);
+}
+
+.persona-theme-bank .metric-card {
+    border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.persona-theme-police {
+    border-top: 4px solid #f43f5e;
+    background: radial-gradient(at 10% 10%, rgba(244, 63, 94, 0.15) 0px, transparent 60%);
+}
+
+.persona-theme-police .metric-card {
+    border-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+.quick-response-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(244, 63, 94, 0.25) 0%, rgba(15, 23, 42, 0.9) 100%);
+    border: 1px solid #f43f5e;
+    border-radius: 10px;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 20px rgba(244, 63, 94, 0.3);
+    animation: pulseGlow 2s infinite alternate;
+}
+
+@keyframes pulseGlow {
+    from { box-shadow: 0 0 10px rgba(244, 63, 94, 0.2); }
+    to { box-shadow: 0 0 25px rgba(244, 63, 94, 0.5); }
+}
+
+.banner-content { display: flex; align-items: center; gap: 12px; }
+.banner-icon { font-size: 1.8rem; }
+.banner-title { font-weight: 800; color: #fff; font-size: 1.05rem; }
+.banner-desc { font-size: 0.85rem; color: #fecdd3; }
+
